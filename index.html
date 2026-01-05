@@ -200,18 +200,31 @@
 
         // --- FUNCTIONS FOR API 2 (TRACKER) ---
         async function addTocollection(id) {
-            const response = await fetch(`${TRACKER_API}/collection/add`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userId: CURRENT_USER,
-                    animeId: id,
-                    status: "watching"
-                })
-            });
-            if (response.ok) {
-                alert("Added!");
-                loadcollection(); // Refresh the sidebar
+            try {
+                const response = await fetch(`${TRACKER_API}/collection/add`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: CURRENT_USER,
+                        itemId: id,
+                        mediaType: "anime",
+                        source: "mal",
+                        status: "planned",
+                        progress: 0
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Add to collection response:', result);
+                    alert("Added to collection!");
+                    loadcollection(); // Refresh the sidebar
+                } else {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Error adding to collection:', error);
+                alert("Failed to add to collection");
             }
         }
 
@@ -223,11 +236,14 @@
         async function loadcollection() {
             try {
                 const res = await fetch(`${TRACKER_API}/collection/${CURRENT_USER}`);
-                const data = await res.json();
+                const response = await res.json();
                 const container = document.getElementById('collection-container');
                 container.innerHTML = '<div style="color: #aaa;">Loading collection...</div>';
                 
-                if (!data || data.length === 0) {
+                // Handle the correct response structure with 'items' array
+                const items = response.items || [];
+                
+                if (!items || items.length === 0) {
                     container.innerHTML = '<div style="color: #aaa;">No items in collection</div>';
                     return;
                 }
@@ -235,7 +251,7 @@
                 container.innerHTML = '';
                 
                 // Fetch anime details for each item
-                for (const item of data) {
+                for (const item of items) {
                     try {
                         const animeRes = await fetch(`${LIBRARY_API}/anime/${item.itemId}`);
                         const animeData = await animeRes.json();
